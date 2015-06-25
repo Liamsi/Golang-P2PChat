@@ -97,9 +97,9 @@ func server() {
 		log.Println("server")
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", port)
-	checkError(err)
+	exitOnError(err)
 	listener, err := net.ListenTCP("tcp", tcpAddr)
-	checkError(err)
+	exitOnError(err)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -340,8 +340,8 @@ func handleErr(err error) {
 	}
 }
 
-//check errors
-func checkError(err error) {
+// print error and quit
+func exitOnError(err error) {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
 		os.Exit(1)
