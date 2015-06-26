@@ -15,8 +15,8 @@ import QtQuick 2.0
 		TextInput {
 	    	id: entry
 	    	anchors.fill: parent
-	    	Keys.onReturnPressed: { ctrl.TextEntered(entry); text=""}
-	    	Keys.onEnterPressed: { ctrl.TextEntered(entry); text=""}
+	    	Keys.onReturnPressed: { ctrl.textEntered(entry); text=""}
+	    	Keys.onEnterPressed: { ctrl.textEntered(entry); text=""}
 
 	    	focus: true
 	    	wrapMode: "WordWrap"
