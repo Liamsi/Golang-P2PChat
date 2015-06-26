@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -171,7 +172,10 @@ func introduceMyself(IP string) {
 	conn := createConnection(IP)
 	enc := json.NewEncoder(conn)
 	intromessage := createmessage("CONNECT", myName, getMyIP(), "", make([]string, 0), make([]string, 0))
-	enc.Encode(intromessage)
+	err := enc.Encode(intromessage)
+	if err != nil {
+		log.Printf("Could not encode msg : %s", err)
+	}
 	go receive(conn)
 }
 
@@ -215,14 +219,16 @@ func connectToPeers(msg message) {
 
 //adds a peer to everyone list
 func addPeer(msg message) {
+
 	mutex.Lock()
 	listIPs[msg.Username] = msg.IP
 	conn := createConnection(msg.IP)
 	listConnections[msg.Username] = conn
 	mutex.Unlock()
+
 	userNames, _ := getFromMap(listIPs)
 	ctrl.updateList(userNames)
-	ctrl.updateText(msg.Username + " just joined the chat")
+	ctrl.updateText(msg.Username + " just joined the chat (from IP: " + msg.IP + ")")
 }
 
 //sends message to all peers
@@ -233,7 +239,7 @@ func (msg *message) send() {
 	if testing {
 		log.Println(listConnections)
 	}
-	for _, peerConnection := range listConnections {
+	for key, peerConnection := range listConnections {
 		enc := json.NewEncoder(peerConnection)
 		enc.Encode(msg)
 	}
@@ -287,12 +293,52 @@ func createConnection(IP string) (conn net.Conn) {
 
 //returns my ip
 func getMyIP() (IP string) {
-	name, err := os.Hostname()
-	handleErr(err)
-	addr, err := net.ResolveIPAddr("ip", name)
-	handleErr(err)
-	IP = addr.String()
+	ip, err := myExternalIP()
+	if err != nil {
+		log.Println("could not get my external adress!")
+		handleErr(err)
+	} else {
+		log.Printf("myExternalAdress = %s", ip)
+	}
+	IP = ip //external IP
 	return
+}
+
+func myExternalIP() (string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 {
+			continue // interface down
+		}
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue // loopback interface
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			return "", err
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+			ip = ip.To4()
+			if ip == nil {
+				continue // not an ipv4 address
+			}
+			return ip.String(), nil
+		}
+	}
+	return "", errors.New("are you connected to the network?")
 }
 
 //creates a new message using the parameters passed in and returns it
@@ -315,6 +361,7 @@ func userInput() {
 	msg := new(message)
 	for {
 		message := <-output
+		log.Printf("userInput got message: %s", message)
 		whatever := strings.Split(message, "*")
 		if message == "disconnect" {
 			msg = createmessage("DISCONNECT", myName, "", "", make([]string, 0), make([]string, 0))
@@ -336,7 +383,7 @@ func userInput() {
 //handles errors
 func handleErr(err error) {
 	if err != nil {
-		log.Println("No one in the chat yet")
+		log.Printf("No one in the chat yet, error = %s", err.Error())
 	}
 }
 
@@ -365,9 +412,8 @@ func (ctrl *control) TextEntered(text qml.Object) {
 	ctrl.inputString = text.String("text") //the ctrl's inputString field holds the message
 	//you will want to send it to the server
 	//but for now just send it back to the conv field
-	//ctrl.updateText(ctrl.inputString)
+	// ctrl.updateText(ctrl.inputString)
 	output <- ctrl.inputString
-
 }
 
 func (ctrl *control) updateText(toAdd string) {
