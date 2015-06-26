@@ -4,16 +4,16 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net"
 
-	"gopkg.in/qml.v1"
-
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/Liamsi/Golang-P2PChat/utils"
+	"gopkg.in/qml.v1"
 )
 
 const port = ":1500"
@@ -84,7 +84,7 @@ func run() error {
 	go userInput()
 
 	win.Wait()
-	closing := createmessage("DISCONNECT", myName, getMyIP(), "", make([]string, 0), make([]string, 0))
+	closing := createmessage("DISCONNECT", myName, utils.GetMyIP(), "", make([]string, 0), make([]string, 0))
 	closing.send()
 	return nil
 }
@@ -97,9 +97,9 @@ func server() {
 		log.Println("server")
 	}
 	tcpAddr, err := net.ResolveTCPAddr("tcp4", port)
-	exitOnError(err)
+	utils.ExitOnError(err)
 	listener, err := net.ListenTCP("tcp", tcpAddr)
-	exitOnError(err)
+	utils.ExitOnError(err)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
@@ -170,7 +170,7 @@ func introduceMyself(IP string) {
 	}
 	conn := createConnection(IP)
 	enc := json.NewEncoder(conn)
-	intromessage := createmessage("CONNECT", myName, getMyIP(), "", make([]string, 0), make([]string, 0))
+	intromessage := createmessage("CONNECT", myName, utils.GetMyIP(), "", make([]string, 0), make([]string, 0))
 	err := enc.Encode(intromessage)
 	if err != nil {
 		log.Printf("Could not encode msg : %s", err)
@@ -184,8 +184,8 @@ func handleConnect(msg message, conn net.Conn) bool {
 		log.Println("handleConnect")
 	}
 	Users, IPs := getFromMap(listIPs)
-	Users = append(Users, myName) //add my name to the list
-	IPs = append(IPs, getMyIP())  //add my ip to the list
+	Users = append(Users, myName)      //add my name to the list
+	IPs = append(IPs, utils.GetMyIP()) //add my ip to the list
 	response := createmessage("LIST", "", "", "", Users, IPs)
 	if alreadyAUser(msg.Username) {
 		response.MSG = "Username already taken, choose another one that is not in the list"
@@ -213,7 +213,7 @@ func connectToPeers(msg message) {
 	}
 	users, _ := getFromMap(listIPs)
 	ctrl.updateList(users)
-	addmessage := createmessage("ADD", myName, getMyIP(), "", make([]string, 0), make([]string, 0))
+	addmessage := createmessage("ADD", myName, utils.GetMyIP(), "", make([]string, 0), make([]string, 0))
 	addmessage.send()
 }
 
@@ -287,60 +287,10 @@ func getFromMap(mappa map[string]string) ([]string, []string) {
 func createConnection(IP string) (conn net.Conn) {
 	service := IP + port
 	tcpAddr, err := net.ResolveTCPAddr("tcp", service)
-	handleErr(err)
+	utils.HandleErr(err)
 	conn, err = net.DialTCP("tcp", nil, tcpAddr)
-	handleErr(err)
+	utils.HandleErr(err)
 	return
-}
-
-//returns my ip
-func getMyIP() (IP string) {
-	ip, err := myExternalIP()
-	if err != nil {
-		log.Println("could not get my external adress!")
-		handleErr(err)
-	} else {
-		log.Printf("myExternalAdress = %s", ip)
-	}
-	IP = ip //external IP
-	return
-}
-
-func myExternalIP() (string, error) {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return "", err
-	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 {
-			continue // interface down
-		}
-		if iface.Flags&net.FlagLoopback != 0 {
-			continue // loopback interface
-		}
-		addrs, err := iface.Addrs()
-		if err != nil {
-			return "", err
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip == nil || ip.IsLoopback() {
-				continue
-			}
-			ip = ip.To4()
-			if ip == nil {
-				continue // not an ipv4 address
-			}
-			return ip.String(), nil
-		}
-	}
-	return "", errors.New("are you connected to the network?")
 }
 
 //creates a new message using the parameters passed in and returns it
@@ -380,21 +330,6 @@ func userInput() {
 		}
 	}
 	os.Exit(1)
-}
-
-//handles errors
-func handleErr(err error) {
-	if err != nil {
-		log.Printf("No one in the chat yet, error = %s", err.Error())
-	}
-}
-
-// print error and quit
-func exitOnError(err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Fatal error: %s", err.Error())
-		os.Exit(1)
-	}
 }
 
 //checks to see if a userName is already in the list
