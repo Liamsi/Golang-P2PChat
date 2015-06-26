@@ -51,7 +51,6 @@ func main() {
 	myName = os.Args[2]
 
 	//starting graphics
-
 	if err := qml.Run(run); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -206,6 +205,7 @@ func handleConnect(msg message, conn net.Conn) bool {
 func connectToPeers(msg message) {
 	for index, ip := range msg.IPs {
 		conn := createConnection(ip)
+
 		mutex.Lock()
 		listIPs[msg.Usernames[index]] = ip
 		listConnections[msg.Usernames[index]] = conn
@@ -239,10 +239,12 @@ func (msg *message) send() {
 	if testing {
 		log.Println(listConnections)
 	}
+	mutex.Lock()
 	for _, peerConnection := range listConnections {
 		enc := json.NewEncoder(peerConnection)
 		enc.Encode(msg)
 	}
+	mutex.Unlock()
 }
 
 //sends message to a peer
@@ -418,9 +420,11 @@ func (ctrl *control) TextEntered(text qml.Object) {
 
 func (ctrl *control) updateText(toAdd string) {
 	//call this method whenever you want to add text to the qml object's conv field
+	mutex.Lock()
 	ctrl.convstring = ctrl.convstring + toAdd + "\n" //also keep track of everything in that field
 	ctrl.Root.ObjectByName("conv").Set("text", ctrl.convstring)
 	qml.Changed(ctrl, &ctrl.convstring)
+	mutex.Unlock()
 }
 
 func (ctrl *control) updateList(list []string) {
