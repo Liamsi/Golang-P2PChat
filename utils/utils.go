@@ -8,6 +8,17 @@ import (
 	"os"
 )
 
+// returns two slices, the first one with the keys of the map and the second on with the values
+func GetFromMap(mappa map[string]string) ([]string, []string) {
+	var keys []string
+	var values []string
+	for key, value := range mappa {
+		keys = append(keys, key)
+		values = append(values, value)
+	}
+	return keys, values
+}
+
 // GetMyIP returns my ip
 func GetMyIP() (IP string) {
 	ip, err := myExternalIP()
