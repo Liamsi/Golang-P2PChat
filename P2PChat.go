@@ -239,7 +239,7 @@ func (msg *message) send() {
 	if testing {
 		log.Println(listConnections)
 	}
-	for key, peerConnection := range listConnections {
+	for _, peerConnection := range listConnections {
 		enc := json.NewEncoder(peerConnection)
 		enc.Encode(msg)
 	}
