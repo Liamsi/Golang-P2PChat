@@ -1,11 +1,4 @@
 P2PChat
 =======
-
-A simple P2P chat written in Golang with a simple qml graphical interface. 
-
-2 command line arguments must be passed in when running the program: 
--IP of the machine to connect to
--Username
-
-If the user is the first one in the chat type 127.0.0.1 for the IP address.
-example: go run P2pChat.go 127.0.0.1 Nicola
+See https://github.com/oeran93/Golang-P2PChat
+I am learning go and just forked this repo out of curiosity. I just silenced go linter and made it compile with a recent go version and using [qml.v1](https://godoc.org/gopkg.in/qml.v1) instead of [v0](https://godoc.org/gopkg.in/qml.v0). Nothing really interesting to see here (yet).
