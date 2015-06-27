@@ -4,10 +4,8 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	"os"
-	"strings"
 
 	"github.com/Liamsi/Golang-P2PChat/peer"
 	"github.com/Liamsi/Golang-P2PChat/uicontrol"
@@ -16,15 +14,14 @@ import (
 )
 
 var ctrl = control.Control{
-	UpdateTextCh:   make(chan string),
-	UpdateUserList: make(chan []string)}
-
-var myName string
+	UpdatedTextToUI:   make(chan string, 10),
+	UpdatedTextFromUI: make(chan string, 10),
+	UpdateUserList:    make(chan []string, 10)}
 
 // start the connection, introduces the user to the chat and creates graphical interface.
 func main() {
 	// adding myself to the list
-	myName = os.Args[2]
+	peer.MyName = os.Args[2]
 
 	// TODO flags instead of os.Args[]
 
@@ -54,45 +51,17 @@ func run() error {
 
 	go ctrl.StartControlLoop()
 
-	ctrl.UpdateTextCh <- "Hello " + myName + ".\nFor private messages, type the message followed by * and the name of the receiver.\n To leave the conversation type disconnect"
+	ctrl.UpdatedTextToUI <- "Hello " + peer.MyName + ".\nFor private messages, type the message followed by * and the name of the receiver.\n To leave the conversation type disconnect"
 
-	go peer.RunServer(ctrl.UpdateTextCh, ctrl.UpdateUserList)
+	go peer.RunServer(ctrl.UpdatedTextToUI, ctrl.UpdateUserList)
 
-	if os.Args[1] != "127.0.0.1" {
+	if os.Args[1] != utils.GetMyIP() {
 		go peer.IntroduceMyself(os.Args[1])
 	} //connect to the first peer
 
-	go userInput()
-
 	win.Wait()
 
-	closing := peer.Message{"DISCONNECT", myName, utils.GetMyIP(), "", make([]string, 0), make([]string, 0)}
+	closing := peer.Message{"DISCONNECT", peer.MyName, utils.GetMyIP(), "", make([]string, 0), make([]string, 0)}
 	closing.Send()
 	return nil
-}
-
-// sends message to the server
-func userInput() {
-
-	log.Println("userInput")
-
-	for {
-		message := <-peer.Output
-		log.Printf("userInput got message: %s", message)
-		whatever := strings.Split(message, "*")
-		if message == "disconnect" {
-			msg := peer.Message{"DISCONNECT", myName, "", "", make([]string, 0), make([]string, 0)}
-			msg.Send()
-			break
-		} else if len(whatever) > 1 {
-			msg := peer.Message{"PRIVATE", myName, "", whatever[0], make([]string, 0), make([]string, 0)}
-			msg.SendPrivToUser(whatever[1])
-			ctrl.UpdateTextCh <- "(private) from " + myName + ": " + msg.MSG
-		} else {
-			msg := peer.Message{"PUBLIC", myName, "", whatever[0], make([]string, 0), make([]string, 0)}
-			msg.Send()
-			ctrl.UpdateTextCh <- myName + ": " + msg.MSG
-		}
-	}
-	os.Exit(1)
 }
